@@ -16,6 +16,7 @@ import torch
 
 import os
 import random
+import re
 import secrets
 
 
@@ -23,9 +24,9 @@ random.seed(secrets.randbits(0x20))
 transformers.set_seed(secrets.randbits(0x20)) # in fact, this is to _avoid_ deterministic outputs...
 
 
-BATCH_SIZE = 0x18 # samples
-BLOCK_SIZE = 0x100 # tokens
-BLOCK_STEP = 0x100 # tokens. It < BLOCK_SIZE means overlap
+BATCH_SIZE = 20 # samples
+BLOCK_SIZE = 0x200 # tokens
+BLOCK_STEP = 0x200 # tokens. It < BLOCK_SIZE means overlap
 CORPUS_DIRPATH = 'text_corpus'
 CUSTOM_INIT_TOKENIZER = True
 DEFAULT_TEST_PART = 0.03
@@ -67,7 +68,7 @@ STRATEGY='steps'
 TOKENIZER_DIRNAME = '_tokenizer_'
 TEMPERATURE = 1.0
 
-TRUST_REMOTE_CODE = True # True is ⚠️SECURITY ISSUE⚠️, but may be the only way...
+TRUST_REMOTE_CODE = False # True is ⚠️SECURITY ISSUE⚠️, but may be the only way for some models...
 
 USE_KV_CACHE = True
 
@@ -193,6 +194,8 @@ last_replique = ' '.join(last_replique)
 
 for _ in range(NUM_FINAL_GENERATIONS):
     prompt = penult_replique + last_replique
+    prompt = re.sub("  +", " ", prompt)
     penult_replique = last_replique
     last_replique = pipe(prompt, do_sample=True, temperature=TEMPERATURE, use_cache=USE_KV_CACHE)[0]['generated_text'][len(prompt):]
+    last_replique = re.sub("  +", " ", re.sub("�", "", last_replique))
     print(last_replique)

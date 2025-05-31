@@ -2,9 +2,9 @@
 
 # not &ensp; that &ensp; stuff
 
-is based on illustrious [The Infinite Conversation](https://www.infiniteconversation.com/) from Giacomo Miceli, described also on [his site](https://jamez.it/project/the-infinite-conversation/) and in [Scientific American article](https://www.scientificamerican.com/article/what-an-endless-conversation-with-werner-herzog-can-teach-us-about-ai/), — [Large-language-model](https://en.wikipedia.org/wiki/Large_language_model) + [Text-to-speech](https://en.wikipedia.org/wiki/Speech_synthesis) + [Voice-cloning](https://en.wikipedia.org/wiki/Audio_deepfake) [doppelgängers](https://en.wikipedia.org/wiki/Doppelg%C3%A4nger) of more or less famous real persons, trained on respective genuine contents produced by them, exchange plausible written and spoken repliques for as long as someone is able and willing to run the generators. At least, the goal is to (re)implement the concept... yet another time.
+is based on illustrious [The Infinite Conversation](https://www.infiniteconversation.com/) from Giacomo Miceli, described also on [his site](https://jamez.it/project/the-infinite-conversation/) and in [Scientific American article](https://www.scientificamerican.com/article/what-an-endless-conversation-with-werner-herzog-can-teach-us-about-ai/), — [Large-language-model](https://en.wikipedia.org/wiki/Large_language_model) + [Text-to-speech](https://en.wikipedia.org/wiki/Speech_synthesis) + [Voice-cloning](https://en.wikipedia.org/wiki/Audio_deepfake) [doppelgängers](https://en.wikipedia.org/wiki/Doppelg%C3%A4nger) of more or less famous real persons, trained and/or fine-tuned on respective genuine contents produced by them, exchange plausible written and spoken repliques for as long as someone is able and willing to run the generators. At least, the goal is to (re)implement the concept... yet another time.
 
-See and hear it in action at [sunkware.org/yau/nts](https://sunkware.org/yau/nts/index.php), — haven't you come here from there, — where, instead of "[Werner Herzog](https://en.wikipedia.org/wiki/Werner_Herzog)" and "[Slavoj Žižek](https://en.wikipedia.org/wiki/Slavoj_%C5%BDi%C5%BEek)" of the original, who discuss art and philosophy, it brings together ("" of) several so-called "experts" or "commentators" after monological videos from their YouTube channels, where they mostly comment on [unprovoked full-scale russian invasion upon Ukraine](https://en.wikipedia.org/wiki/Russian_invasion_of_Ukraine).
+See and hear it in action at [sunkware.org/yau/nts](https://sunkware.org/yau/nts/index.php), — haven't you come here from there, — where, instead of "[Werner Herzog](https://en.wikipedia.org/wiki/Werner_Herzog)" and "[Slavoj Žižek](https://en.wikipedia.org/wiki/Slavoj_%C5%BDi%C5%BEek)" of the original, who discuss art and philosophy, it brings together ("" of) several so-called "experts" or "commentators" after monological videos from their YouTube channels, where they mostly comment on [unprovoked full-scale russian invasion, unleashed by putin, upon Ukraine](https://en.wikipedia.org/wiki/Russian_invasion_of_Ukraine).
 
 Now, we suppose, you are interested in its
 
@@ -16,7 +16,7 @@ But first of all, you find at least 2 *speakers* whose dialogue you want to imit
 
 ### Training stage
 
-proceeds independently for each speaker, from whom you need to obtain
+proceeds independently for each speaker (or not, see [From-scratch vs. Fine-tuning](#from-scratch-vs-fine-tuning) below), from whom you need to obtain
 
 * *text corpus*: many plain text (`.txt`) files in UTF-8 encoding, their total size being not less than 10 MB (the more **of good quality**, the better). Put them all into `SpeakerName/text_corpus/`.
 
@@ -30,7 +30,7 @@ How exactly you obtain these corpora and what courtesy they will have (and how m
 
 All corpora must be in the same language, [supported by XTTS-v2](https://coqui-tts.readthedocs.io/en/latest/models/xtts.html#languages) of [Coqui-TTS](https://github.com/idiap/coqui-ai-tts) or another text-to-speech and voice-cloning model you are going to use.
 
-GPU with CUDA support and enough VRAM is almost necessary for training to take days instead of months; as for generation, CPU-only way is possible if you are able to afford waiting, in particular when you do not need generation to be faster than listening. There are many cloud GPU providers out there anxious to get your 💰 (we've rented 1-GPU instance with 16 GB VRAM for approx. $7/day at [RunPod](https://www.runpod.io/)). See `cloud_deploy.sh` as an example of additional setup of a remote computational instance to which you have SSH access; in particular, you need a terminal multiplexer such as `tmux` for training to continue when you logout. That instance either runs continuously until the end of generation stage, or it has some persistent storage keeping the intermediate results during reboots.
+GPU with CUDA support and enough VRAM is almost necessary for training to take days instead of months; as for generation, CPU-only way is possible if you are able to afford waiting, in particular when you do not need generation to be faster than listening. There are many cloud GPU providers out there anxious to get your 💰 (we've rented 1-GPU instance with 20 GB VRAM for approx. $7/day at [RunPod](https://www.runpod.io/)). See `cloud_deploy.sh` as an example of additional setup of a remote computational instance to which you have SSH access; in particular, you need a terminal multiplexer such as `tmux` for training to continue when you logout. That instance either runs continuously until the end of generation stage, or it has some persistent storage keeping the intermediate results during reboots.
 
 ```shell
 $ pip install --upgrade accelerate coqui-tts datasets sounddevice soundfile torch transformers
@@ -72,19 +72,48 @@ Also, in `train_textgenmodel.py`, there are
 
 * `PRETRAINED_MODEL_NAMEPATH` (`openai-community/gpt2` by default, the smallest 124M-parameters version) and `RANDOM_INIT_WEIGHTS` (`True` by default)
 
-* `BLOCK_SIZE` (context length in tokens, default is 256)
+* `BLOCK_SIZE` (context length in tokens, default is 512)
 
-* `BLOCK_STEP` (256), if less than `BLOCK_SIZE`, makes blocks overlap; beware overfitting in such case
+* `BLOCK_STEP` (512), if less than `BLOCK_SIZE`, makes blocks overlap; beware overfitting in such case
 
 * `NUM_EPOCHS` (59)
 
-* `BATCH_SIZE` (24) and `GRADIENT_ACCUMULATION_STEPS` (8)
+* `BATCH_SIZE` (20) and `GRADIENT_ACCUMULATION_STEPS` (8)
 
-Keep in mind that the larger `VOCAB_SIZE`, `BLOCK_SIZE`, and `BATCH_SIZE` you set, the more VRAM you need. For instance, these defaults require 15+ GB.
+Keep in mind that the larger `VOCAB_SIZE`, `BLOCK_SIZE`, and `BATCH_SIZE` you set, the more VRAM you need. For instance, these defaults require almost 20 GB. To know VRAM usage more precisely, run `watch -n 1 nvidia-smi` in another window of your terminal multiplexer such as `tmux`.
 
 As usual, halt training via Ctrl+C as soon as `eval_loss` begins to *increase steadily*, which means overfitting. At that, `_textgenmodel_/` has no files, but 2 dirs named `checkpoint-...`: the best with lower index and the latest with higher index. Move all files from the best one to `_textgenmodel_` and remove the latest checkpoint. Or wait until the whole training completes, then it happens automatically (remove remaining checkpoint to free space).
 
-Models for different speakers can be different, say, [`distilgpt2`](https://huggingface.co/EleutherAI/gpt-neo-125m) for some and [`gpt2`](https://huggingface.co/openai-community/gpt2) for others. When all models have been trained, you are ready for
+Text models for different speakers can be different, say, [`GPT-Neo-125M`](https://huggingface.co/EleutherAI/gpt-neo-125m) for some and [`GPT2`](https://huggingface.co/openai-community/gpt2) for others... however, take into account
+
+#### From-scratch vs. Fine-tuning
+
+for each speaker is a choice you make **before** training text models (we hope you do not read this after all models have been trained already). We found fine-tuning to give slightly more *coherent* repliques than from-scratch... ad hoc the following reasoning explains this: consider "sonnet in the style of Shakespeare about semiconductors", — it is possible, it can be written, you imagine sentences from it now... but the LLM to produce it cannot be trained on Shakespeare's works *only*, because the very word "semiconductor" never appears there; we have to provide the model with vaster "experience" (context).
+
+So, fine-tuning means that the model for each speaker is, well, fine-tuned on her/his text corpus *after* it has been trained *once* on larger and more general "common base" corpus... from which, we assume, it extracts the context(s) in question. This corpus, while in a single language, does not need to be monological and probably should not be such, — on the contrary, we aim for variety of genres, styles etc. Let us call a common base corpus a **Library**, because
+
+we, for example, used a (10+ years old) DVD with snapshot of an online library, text files from it cleaned (see `walkfiltalphdefl.py`) so that only letters from target language alphabet and spaces remain, not even punctuation or digits or newlines, which is perhaps overly restrictive. Inappropriate, e.g. too small or "system", files were removed entirely. In the end, there were approx. 6 GB of plain text in UTF-8. One alternative, more common these days, is the [backup of Wikipedia](https://dumps.wikimedia.org/) in a target language, although the genre and style variety seems problematic there.
+
+Aside from *time* (and *cost*) requirements, though, the procedure is almost the same, and instead of 1 step described above it consists of 2 such steps; tokenizer is trained only once. Put the `text_corpus` dir (with all cleaned Library's texts) and symlinks to `train_tokenizer.py`, `train_textgenmodel.py` to `Library` dir, and from that dir, as before,
+
+```shell
+$ python3 train_tokenizer.py
+$ python3 train_textgenmodel.py
+```
+
+Of course, the training can now take *days* or *weeks* instead of *hours* (or pay for several GPUs); interrupt it when the quality = evaluation loss is close enough to its asymptotic value. When the training is finished, copy `_tokenizer_` (or symlink to it) and `_textgenmodel_` to `SpeakerName/`, and from there
+
+```shell
+$ python3 train_textgenmodel.py
+```
+
+Disk space note: HuggingFace's stack creates cached version of text dataset, 2-3 times larger than the dataset itself. So, if your corpus is 10 GB, at least 30 GB in addition have to be free; read about `HF_HOME` environment variable.
+
+Now, before you go this way feeding GPU providers with your 💰, stop for a moment and search for *already existing* LLMs trained on huge general corpora in target language, not instruction-tuned yet. To get and fine-tune one such model may be much better than training some from scratch for weeks on Library.
+
+Even with fine-tuning approach, you can use different models for different speakers, but all models have to be trained on Library first. Time, time, time; cost, cost, cost.
+
+When all models have been trained, one way or another, you are ready for
 
 ### Generation stage
 
@@ -122,6 +151,10 @@ After several repliques have been made, the process seems to hang. Actually it d
 are of two kinds: general and per-speaker. Some of general parameters:
 
 * `REPLIQUES_RESERVE_LEN` (16 by default) prevents filling of disk space with repliques accumulating indefinitely. As soon as the number of repliques in `_repliques_` reaches this limit, the generation is paused. Now choose: either you set it to large value, generate all repliques beforehand (this is how we made the aforementioned demo) and halt the process with Ctrl+C, or open another terminal and from `YourNTS/` run `playeraser.py` (see below).
+
+* `CHATTER_SEED1` and `CHATTER_SEED2` "seed" the conversation in the beginning
+
+* `CHATTER_HIDDEN_REFRAIN` is prepended to each pair of past repliques at generation, to keep conversation from wandering too far astray
 
 * `TEXT_LENGTH_MIN` (in tokens, 128 by default)
 
@@ -177,7 +210,7 @@ A lot of possibilities is missed here, unless you start
 
 is even more infinite. The scripts are short and generic enough for you to read them all through carefully and get the rest of the details. This (and laziness) is why we have described them above as "black boxes" mostly. Hoping that the code speaks for itself, we encourage you to look into them and shed the light of **your own** comprehension.
 
-One potential way to better quality, among many others, is to take a model trained on much larger and general corpus and *fine-tune* it on the (relatively small and narrow) corpus of given speaker, rather than training it *from scratch* using the latter corpus only. Another hint is to rely on corpora better than YouTube subtitles.
+One potential way to better quality, among many others, is to rely on corpora other than YouTube subtitles.
 
 And maybe it's you who will make this mess better than
 

@@ -18,11 +18,13 @@ import glob
 import json
 import os
 import random
+import re
 import secrets
 import shutil
 import time
 
 
+CHATTER_HIDDEN_REFRAIN = " развязанная Путиным неспровоцированная полномасштабная война Российской Федерации против Украины "
 CHATTER_SEED1 =  'Быть иль не быть Вот в чём вопрос Что лучше Сносить ли от неистовой судьбы Удары стрел и камней или смело Вооружиться против моря зла И в бой вступить Ведь умереть уснуть Не больше И сознать что этим сном Мы заглушим все муки духа боли Телесные О это столь желанный Конец Да умереть уснуть Уснуть Жить в мире грёз быть может Вот Преграда А какие в мёртвом сне Видения пред духом бестелесным проносятся О в этом вся причина Что скорби долговечны на земле' # 'To be or not to be?''
 CHATTER_SEED2 = 'Белеет пена дует ветр За нами рябь растёт Вошли мы первыми в просторы тех молчаливых вод Стих ветр и парус наш повис И горе к нам идёт Лишь голос наш звучит в тиши Тех молчаливых вод В горячих медных небесах Полдневною порой Над мачтой Солнце точно кровь С Луну величиной За днями дни за днями дни Мы ждём корабль наш спит Как в нарисованной воде Рисованный стоит Вода вода одна вода Но чан лежит вверх дном Вода вода одна вода Мы ничего не пьём' # 'Ancient Mariner'
 DEFAULT_SPEECH_TEMPERATURE = 0.75 # Coqui's XTTS default (documentation mentions 0.65, but see actual inference() in tts/models/xtts.py)
@@ -36,7 +38,7 @@ LATENT_FILENAME = 'latent.pt'
 NEW_REPLIQUE_DIRNAME = 'new'
 PARAMETERS_FILENAME = 'parameters.json'
 REPLIQUES_DIRNAME = '_repliques_'
-REPLIQUES_RESERVE_LEN = 0x10 # or 1440 ~ 1 day
+REPLIQUES_RESERVE_LEN = 16 # or 1440 ~ 1 day
 SAMPLE_RATE = 24000 # Coqui's XTTS default
 SPEAKER_FILENAME = 'speaker.txt'
 SPEAKERS_DIRNAME = 'speakers'
@@ -44,8 +46,8 @@ SPEAKERS_DIRNAME = 'speakers'
 SPEECH_FILENAME = 'speech.flac'
 SPEECHGEN_DIRNAME = '_speechgen_'
 TEXT_FILENAME = 'text.txt'
-TEXT_LENGTH_MIN = 0x80 # tokens
-TEXT_LENGTH_MAX = 0x100 # tokens, (BLOCK_SIZE >> 1) in train_textgenmodel.py
+TEXT_LENGTH_MIN = 0xC0 # tokens
+TEXT_LENGTH_MAX = 0x100 # tokens, ~(BLOCK_SIZE >> 1) in train_textgenmodel.py
 TEXTGEN_MODEL_DIRNAME = '_textgenmodel_'
 TTS_MODEL_NAMEPATH = 'tts_models/multilingual/multi-dataset/xtts_v2'
 # TTS_MODEL_NAMEPATH = "tts_models/rus/fairseq/vits" # DEBUG (without cloning)
@@ -163,9 +165,12 @@ def run():
 			with open(f"{new_rpl_dirpath}/{SPEAKER_FILENAME}", 'w') as file:
 				file.write(speaker)
 
-			prompt = penult_replique + last_replique
+			prompt = CHATTER_HIDDEN_REFRAIN + penult_replique + last_replique
+			prompt = re.sub("  +", " ", prompt)
 			penult_replique = last_replique
 			last_replique = textgens[speaker].generate_text(prompt, parameters[speaker].text_temperature)
+			last_replique = re.sub("  +", " ", re.sub("�", "", last_replique)) # � sometimes appear, perhaps unknown tokens
+    
 			with open(f"{new_rpl_dirpath}/{TEXT_FILENAME}", 'w') as file:
 				file.write(last_replique) # for Player, but it also can be read above if Forger is resumed
 

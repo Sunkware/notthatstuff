@@ -7,7 +7,7 @@ apt update
 apt install mc tmux 7zip lm-sensors
 
 python -m pip install -U pip
-pip install accelerate coqui-tts datasets soundfile transformers
+pip install -U accelerate coqui-tts datasets soundfile transformers
 
 mkdir /workspace/huggingface_cache
 export HF_HOME=/workspace/huggingface_cache
